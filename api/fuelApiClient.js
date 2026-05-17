@@ -4,24 +4,27 @@ const path = require('path');
 const ConfigManager = require('../utils/configManager');
 require('dotenv').config();
 
-// FuelApiClient handles authentication and reference data requests for the NSW Fuel API.
+// FuelApiClient centralises NSW Fuel API authentication and reference-data calls.
+// Tests use this client instead of constructing HTTP requests directly in specs.
 class FuelApiClient {
   constructor() {
-    // Base URL for the NSW Fuel API.
-    this.baseUrl = 'https://api.onegov.nsw.gov.au';
-    // Load API credentials from environment variables.
+    // Base URL comes from config so the same client can be pointed at another environment.
+    this.configManager = new ConfigManager();
+    this.baseUrl = this.configManager.getApiConfig().baseUrl;
+
+    // Secrets are intentionally loaded from environment variables, not config.json.
     this.apiKey = process.env.API_KEY;
     this.apiSecret = process.env.API_SECRET;
     this.authHeader = process.env.AUTH_HEADER;
-    // Config manager writes runtime values back to config.json.
-    this.configManager = new ConfigManager();
   }
 
   async getAccessToken() {
-    // Request a new OAuth access token using client credentials.
+    // Request a fresh OAuth token for each API flow.
+    // The token is returned to the caller and not written into tracked config.
     try {
       const response = await axios.get(`${this.baseUrl}/oauth/client_credential/accesstoken`, {
         params: { grant_type: 'client_credentials' },
+        timeout: 30000,
         headers: {
           'Authorization': this.authHeader,
           'accept': 'application/json'
@@ -29,22 +32,21 @@ class FuelApiClient {
       });
 
       const accessToken = response.data.access_token;
-      // Persist the latest access token in config.json for other tests.
-      this.configManager.updateConfig('api.accessToken', accessToken);
       return accessToken;
     } catch (error) {
-      // Bubble up a descriptive error if the token request fails.
+      // Surface a clear message in Playwright reports if authentication fails.
       throw new Error(`Failed to get access token: ${error.message}`);
     }
   }
 
   async getReferenceData(accessToken) {
-    // Build request headers and unique metadata for the reference data call.
+    // Build unique request metadata required by the NSW API gateway.
     const transactionId = this.generateTransactionId();
     const timestamp = this.getCurrentTimestamp();
 
     try {
       const response = await axios.get(`${this.baseUrl}/FuelCheckRefData/v1/fuel/lovs`, {
+        timeout: 30000,
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json; charset=utf-8',
@@ -56,23 +58,24 @@ class FuelApiClient {
         }
       });
 
-      // Persist the API response to the test-results folder for review.
+      // Persist response data as an artifact for interview/review evidence.
       const responsePath = path.join(__dirname, '../test-results/reference-data.json');
+      fs.mkdirSync(path.dirname(responsePath), { recursive: true });
       fs.writeFileSync(responsePath, JSON.stringify(response.data, null, 2));
       return response.data;
     } catch (error) {
-      // Bubble up a descriptive error if the reference data request fails.
+      // Keep API failures actionable in the report.
       throw new Error(`Failed to get reference data: ${error.message}`);
     }
   }
 
   generateTransactionId() {
-    // Generate a random six-digit transaction identifier.
+    // NSW API metadata expects a six-digit transaction identifier.
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
   getCurrentTimestamp() {
-    // Format the current date and time as dd/MM/yyyy hh:mm:ss.
+    // NSW API headers use a day-first timestamp format.
     const now = new Date();
     return now.toLocaleDateString('en-GB') + ' ' + now.toLocaleTimeString('en-GB', { hour12: false });
   }

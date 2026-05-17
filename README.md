@@ -1,220 +1,231 @@
-# Core Automation Framework
+# SNSW Automation Task
 
-A scalable, enterprise-ready automation framework for UI and API testing, designed to be adopted across teams working on digital services.
+This repo contains a Playwright test framework for the Service NSW renew registration journey, plus a small NSW Fuel API test suite. I kept the structure simple: page objects own browser interactions, tests stay close to the business flow, and shared setup lives in utilities.
 
-## Architecture Overview
+The framework currently covers:
 
-This framework follows a modular architecture with clear separation of concerns:
+- UI checks for the renew registration flow.
+- API checks for token retrieval, reference data, transaction id generation, and timestamp generation.
+- Lightweight accessibility scans with axe-core. ARIA-specific axe rules are disabled for this task.
+- Playwright HTML reporting, failure screenshots, and CI artifact upload.
 
-- **UI Automation**: Uses Playwright for browser automation with Page Object Model
-- **API Automation**: Uses Axios for HTTP requests with dedicated API clients
-- **Configuration Management**: Centralized config management with environment variable support
-- **Test Organization**: Structured test suites for UI and API scenarios
-- **Reporting**: Built-in Playwright reporting with HTML and GitHub workflow integration
+## Stack
 
-### Key Design Decisions
+- Node.js
+- Playwright
+- @axe-core/playwright
+- Axios
+- dotenv
 
-- **Page Object Model**: Encapsulates UI interactions for maintainability
-- **API Client Pattern**: Dedicated clients for different APIs with authentication handling
-- **Configuration as Code**: JSON configs with environment variable overrides for secrets
-- **Modular Structure**: Separate folders for pages, APIs, utils, and tests
-- **Cross-Platform**: Node.js based, works on Windows, macOS, Linux
+## Setup
 
-### Technology Choices
+Install dependencies and browsers:
 
-- **Playwright**: Chosen for its cross-browser support (Chrome, Firefox, WebKit), auto-waiting, and API testing capabilities
-- **Axios**: Reliable HTTP client with interceptors and response handling
-- **Node.js**: JavaScript runtime for consistency across UI and API testing
-- **dotenv**: Secure environment variable management for secrets
-- **Multi-Browser Testing**: Tests execute on Chrome, Firefox, and WebKit to ensure cross-browser compatibility
-- **CI Reporting**: GitHub reporter support is enabled for GitHub Actions in addition to HTML report generation
-- **Screenshot Capture**: UI test failures capture screenshots automatically for easier debugging
+```bash
+npm install
+npm run install-browsers
+```
 
-## Setup Instructions
+Create a local `.env` file for API credentials:
 
-### Prerequisites
+```bash
+API_KEY=your-api-key
+API_SECRET=your-api-secret
+AUTH_HEADER=your-basic-auth-header
+```
 
-- Node.js (v16 or higher)
-- npm
+The `.env` file is ignored by git.
 
-### Installation
+## Project Layout
 
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Install Playwright browsers:
-   ```bash
-   npm run install-browsers
-   ```
-4. Set up environment variables:
-   - Create a `.env` file with required secrets
-   - Required environment variables:
-     - `API_KEY`: NSW Fuel API key
-     - `API_SECRET`: NSW Fuel API secret
-     - `AUTH_HEADER`: Base64 encoded authorization header
+```text
+api/
+  fuelApiClient.js
+config/
+  config.json
+pages/
+  HomePage.js
+  SearchResultsPage.js
+  TransactionPage.js
+tests/
+  accessibility/
+    renewRegoAccessibility.spec.js
+  api/
+    fuelApi.spec.js
+  ui/
+    renewRego.spec.js
+utils/
+  accessibilityHelper.js
+  configManager.js
+  screenshotHelper.js
+.github/workflows/
+  playwright.yml
+playwright.config.ts
+package.json
+```
 
-> Note: Tests are configured to run across all major browsers: Chrome, Firefox, and WebKit via `playwright.config.ts`.
+## Running Tests
 
-### Configuration
+Run everything:
 
-- `config/config.json`: Contains test data and API configurations
-- `.env`: Contains sensitive information (not committed to repo)
-- Access tokens are automatically updated in config.json during test execution
-
-## How to Execute Tests
-
-### Run All Tests (All Browsers)
 ```bash
 npm test
 ```
-This runs all tests across Chrome, Firefox, and WebKit browsers in parallel and generates both an HTML report and GitHub workflow report metadata when executed in GitHub Actions.
 
-After the run, view the local HTML report with:
+Run one suite:
+
 ```bash
-npx playwright show-report
+npm run test:ui
+npm run test:api
+npm run test:accessibility
 ```
 
-Step-by-step screenshots are now captured across UI interactions and page transitions for both passing and failing scenarios. Find screenshot artifacts in the Playwright test output directory under `test-results/`.
+Run one browser project:
 
-The `test-results/` folder now holds screenshots and other Playwright artifacts, while the HTML report is generated under `playwright-report/`.
-
-### Run Tests on Specific Browser
 ```bash
 npx playwright test --project=chrome
 npx playwright test --project=firefox
 npx playwright test --project=webkit
 ```
 
-### Run UI Tests Only
-```bash
-npm run test:ui
-```
+Run one spec file:
 
-### Run API Tests Only
-```bash
-npm run test:api
-```
-
-### Run Specific Test File
 ```bash
 npx playwright test tests/ui/renewRego.spec.js
 npx playwright test tests/api/fuelApi.spec.js
+npx playwright test tests/accessibility/renewRegoAccessibility.spec.js
 ```
 
-## Assumptions Made
+Open the report:
 
-- Service NSW website structure remains consistent
-- NSW Fuel API endpoints and response formats are stable
-- Node.js and npm are available in the execution environment
-- Internet connectivity for API calls and website access
-
-## Trade-offs Considered
-
-- **Playwright for API Testing**: While primarily a browser automation tool, Playwright's test runner provides consistent reporting and execution for both UI and API tests
-- **JSON Config Files**: Simple and readable, but requires file I/O for updates
-- **Environment Variables for Secrets**: Secure but requires manual setup
-- **No Database Layer**: Kept simple for initial implementation; can be added for complex data management
-
-## Framework Scalability
-
-### For Enterprise Use
-
-- **Modular Design**: Easy to add new page objects, API clients, and test suites
-- **Configuration Management**: Supports multiple environments (dev, staging, prod)
-- **Reporting Integration**: Can integrate with CI/CD pipelines and test management tools
-- **Parallel Execution**: Playwright supports parallel test execution
-- **Cross-Browser Testing**: Built-in support for multiple browsers
-- **API Mocking**: Can be extended with tools like WireMock for API simulation
-
-### Extending the Framework
-
-1. **Add New UI Tests**:
-   - Create new page objects in `pages/`
-   - Add test files in `tests/ui/`
-
-2. **Add New API Tests**:
-   - Create new API clients in `api/`
-   - Add test files in `tests/api/`
-
-3. **Add New Environments**:
-   - Update `config/config.json` with environment-specific settings
-   - Use environment variables for secrets
-
-4. **CI/CD Integration**:
-   - Add GitHub Actions or Jenkins pipelines
-   - Configure parallel execution
-   - Set up automated reporting
-
-## Project Structure
-
-```
-├── api/                    # API client classes
-│   └── fuelApi.js         # NSW Fuel API client
-├── config/                # Configuration files
-│   └── config.json       # Test data and settings
-├── pages/                 # Page object classes
-│   ├── HomePage.js       # Service NSW home page
-│   ├── SearchResultsPage.js
-│   └── TransactionPage.js
-├── tests/                 # Test suites
-│   ├── ui/               # UI automation tests
-│   │   └── renewRego.spec.js
-│   └── api/              # API automation tests
-│       └── fuelApi.spec.js
-├── utils/                 # Utility classes
-│   └── configManager.js  # Configuration management
-├── .env                   # Environment variables (gitignored)
-├── .gitignore            # Git ignore rules
-├── package.json          # Dependencies and scripts
-├── playwright.config.ts  # Playwright configuration
-└── README.md             # This documentation
+```bash
+npx playwright show-report
 ```
 
-## Test Scenarios
+On PowerShell, use `npx.cmd` if script execution policy blocks `npx`:
 
-### UI Automation - Service NSW
+```powershell
+npx.cmd playwright test
+```
 
-1. **Homepage Load Validation**: Verifies the homepage loads successfully and cookie consent is handled
-2. **Service Search**: Searches for "Renew Rego" and opens the Renew Registration landing page
-3. **Happy Path**: Valid plate number (YGW98K) is entered and the form is submitted
-4. **Negative Scenario**: Invalid plate number (XYX123) is entered and an error/validation state is expected
+## Test Coverage
 
-### API Automation - NSW Fuel API
+UI tests cover:
 
-1. **Access Token Retrieval**: Validates OAuth token acquisition
-2. **Reference Data Fetch**: Tests GET request with authentication and headers
-3. **Response Validation**: Verifies response structure and data integrity
-4. **Error Handling**: Tests behavior with invalid tokens
+- Opening Service NSW.
+- Searching for Renew Rego.
+- Opening the renew registration page.
+- Entering a valid plate number.
+- Entering an invalid plate number and checking the error message.
 
-## Security Considerations
+API tests cover:
 
-- API keys and secrets stored in environment variables
-- `.env` file excluded from version control
-- Access tokens cached in config but refreshed on each test run
-- No hardcoded credentials in source code
+- OAuth access token retrieval.
+- Reference data retrieval.
+- Six-digit transaction id generation.
+- Current timestamp generation.
+
+Accessibility tests cover these page states:
+
+- Service NSW home page.
+- Renew registration search results.
+- Renew registration landing page.
+- Plate lookup form.
+- Invalid plate error state.
+
+The default Playwright config discovers 18 tests:
+
+- `api`: API specs only.
+- `chrome`: UI and accessibility specs.
+- `firefox`: UI specs only.
+- `webkit`: UI specs only.
+
+## Accessibility Scope
+
+The accessibility suite uses axe-core to catch general page issues and attach evidence to the Playwright report. It is not being used as an ARIA standards review.
+
+In [utils/accessibilityHelper.js](./utils/accessibilityHelper.js), the helper disables every installed axe rule whose id starts with `aria-`. That keeps known ARIA rule output from the live Service NSW pages out of this task while still allowing the scan to report other automated findings.
+
+By default, accessibility findings are reported but do not fail the build. To make reported findings fail the run:
+
+```bash
+A11Y_FAIL_ON_VIOLATIONS=true npm run test:accessibility
+```
+
+PowerShell:
+
+```powershell
+$env:A11Y_FAIL_ON_VIOLATIONS='true'
+npm run test:accessibility
+```
+
+Each scan attaches:
+
+- A markdown summary.
+- The raw axe JSON result.
+- A Playwright screenshot if the test itself fails.
+
+## Framework Notes
+
+The page object classes are:
+
+- `HomePage`: opens Service NSW, handles cookies, and runs the search.
+- `SearchResultsPage`: validates search results and opens the renew registration page.
+- `TransactionPage`: handles the external renew registration form.
+
+The locator approach is practical rather than over-engineered:
+
+- Prefer customer-facing locators such as button text, labels, and headings.
+- Use stable URL fragments where navigation is the contract.
+- Use `data-testid` when the app exposes one.
+- Avoid generated ids, long CSS chains, and XPath for normal interactions.
+
+`ConfigManager` reads non-secret config from `config/config.json`. API secrets come from `.env` or CI secrets. Runtime access tokens are kept in memory and are not written back into config.
+
+## Reports And Artifacts
+
+Playwright writes:
+
+- HTML report: `playwright-report/`
+- Test artifacts: `test-results/`
+- API reference-data artifact: `test-results/reference-data.json`
+- Accessibility markdown and JSON attachments in the HTML report
+
+Optional step screenshots can be enabled for local debugging:
+
+```bash
+CAPTURE_STEP_SCREENSHOTS=true npm test
+```
+
+PowerShell:
+
+```powershell
+$env:CAPTURE_STEP_SCREENSHOTS='true'
+npm test
+```
+
+## CI
+
+The GitHub Actions workflow is in `.github/workflows/playwright.yml`.
+
+It installs dependencies, installs Playwright browsers, runs `npx playwright test`, and uploads the Playwright report and test results as artifacts.
 
 ## Troubleshooting
 
-### Common Issues
+If browsers are missing:
 
-1. **Browser Installation**: Run `npm run install-browsers` if tests fail to launch browsers
-2. **Environment Variables**: Ensure `.env` file exists with correct values
-3. **Network Issues**: Check internet connectivity for API calls and website access
-4. **Node Version**: Ensure Node.js v16+ is installed
-
-### Debug Mode
-
-Run tests with debug flags:
 ```bash
-npx playwright test --debug
+npm run install-browsers
 ```
 
-## Contributing
+If API tests fail:
 
-1. Follow the established folder structure
-2. Use Page Object Model for UI tests
-3. Implement API clients for new APIs
-4. Update configuration for new test data
-5. Add comprehensive documentation for new features
+- Check that `.env` exists.
+- Check that the API credentials are still valid.
+- Check network access to `https://api.onegov.nsw.gov.au`.
+
+If UI tests fail intermittently:
+
+- Rerun the failed browser project.
+- Check network access to Service NSW.
+- Open `playwright-report/` and review the failed step.

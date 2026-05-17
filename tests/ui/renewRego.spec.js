@@ -4,76 +4,74 @@ const HomePage = require('../../pages/HomePage');
 const SearchResultsPage = require('../../pages/SearchResultsPage');
 const TransactionPage = require('../../pages/TransactionPage');
 
-// UI tests for the Service NSW Renew Registration flow.
-test.describe('Service NSW UI Automation', () => {
-    let configManager;
+// UI regression tests for the Service NSW Renew Registration journey.
+// The tests stay business-readable by delegating browser details to page objects.
+test.describe('Service NSW UI Automation - Renew Registration', () => {
+  let configManager;
 
-    test.beforeEach(() => {
-        // Initialize configuration manager before each test.
-        configManager = new ConfigManager();
-    });
+  test.beforeEach(() => {
+    // Load fresh config per test so each scenario can read the latest configured test data.
+    configManager = new ConfigManager();
+  });
 
-    test('Load Home Page and Renew Registration Landing page', async ({ page }) => {
-        const homePage = new HomePage(page);
-        const searchResultsPage = new SearchResultsPage(page);
-        const transactionPage = new TransactionPage(page);
+  // Shared journey setup:
+  // 1. Open Service NSW home page.
+  // 2. Search for the Renew Rego service.
+  // 3. Open the Renew Registration landing page.
+  // This keeps each test focused on the behavior it is proving after navigation.
+  const navigateToRenewRegistration = async (page) => {
+    const homePage = new HomePage(page);
+    const searchResultsPage = new SearchResultsPage(page);
+    const transactionPage = new TransactionPage(page);
 
-        await homePage.goto();
-        await homePage.validatePageLoads();
+    await homePage.goto();
+    await homePage.validatePageLoads();
 
-        await homePage.searchForService('Renew Rego');
-        await searchResultsPage.validateResults();
-        await searchResultsPage.clickRenewRego();
+    await homePage.searchForService('Renew Rego');
 
-        await expect(page).toHaveURL(/renew-a-vehicle-registration/i);
-        await transactionPage.clickRenewOnline();
+    await searchResultsPage.validateResults();
+    await searchResultsPage.clickRenewRego();
 
-        const plateInput = page.getByTestId('input');
-        await expect(plateInput).toBeVisible({ timeout: 15000 });
-    });
+    await expect(page).toHaveURL(/renew-a-vehicle-registration/i);
 
-    test('Happy Path: Renew vehicle registration with valid plate number', async ({ page }) => {
-        const homePage = new HomePage(page);
-        const searchResultsPage = new SearchResultsPage(page);
-        const transactionPage = new TransactionPage(page);
+    return transactionPage;
+  };
 
-        await homePage.goto();
-        await homePage.validatePageLoads();
+  test('Load Renew Registration Landing page', async ({ page }) => {
+    // Smoke test: prove the customer can reach the renewal app and see the plate entry form.
+    const transactionPage = await navigateToRenewRegistration(page);
 
-        await homePage.searchForService('Renew Rego');
-        await searchResultsPage.validateResults();
-        await searchResultsPage.clickRenewRego();
+    await transactionPage.clickRenewOnline();
+    await transactionPage.validatePlateNumberInputVisible();
+  });
 
-        await expect(page).toHaveURL(/renew-a-vehicle-registration/i);
-        await transactionPage.clickRenewOnline();
+  test('Happy Path: Renew vehicle registration', async ({ page }) => {
+    // Happy path: use a configured valid plate and confirm the flow reaches renewal terms.
+    const transactionPage = await navigateToRenewRegistration(page);
 
-        const plateInput = page.getByTestId('input');
-        await expect(plateInput).toBeVisible({ timeout: 15000 });
+    await transactionPage.clickRenewOnline();
 
-        await transactionPage.enterPlateNumber(configManager.getTestData().plateNumbers.happyPath);
-        await transactionPage.clickFindVehicle();
-    });
+    await transactionPage.enterPlateNumber(
+      configManager.getHappyPathPlate()
+    );
 
-    test('Negative Scenario: Renew vehicle registration with invalid plate number', async ({ page }) => {
-        const homePage = new HomePage(page);
-        const searchResultsPage = new SearchResultsPage(page);
-        const transactionPage = new TransactionPage(page);
+    await transactionPage.clickFindVehicle();
 
-        await homePage.goto();
-        await homePage.validatePageLoads();
+    await transactionPage.validateRenewalTermsPage();
+  });
 
-        await homePage.searchForService('Renew Rego');
-        await searchResultsPage.validateResults();
-        await searchResultsPage.clickRenewRego();
+  test('Negative Scenario: Invalid plate number', async ({ page }) => {
+    // Negative path: use configured invalid/cancelled plate data and validate user-facing error.
+    const transactionPage = await navigateToRenewRegistration(page);
 
-        await expect(page).toHaveURL(/renew-a-vehicle-registration/i);
-        await transactionPage.clickRenewOnline();
+    await transactionPage.clickRenewOnline();
 
-        const plateInput = page.getByTestId('input');
-        await expect(plateInput).toBeVisible({ timeout: 15000 });
+    await transactionPage.enterPlateNumber(
+      configManager.getNegativePlate()
+    );
 
-        await transactionPage.enterPlateNumber(configManager.getTestData().plateNumbers.negative);
-        await transactionPage.clickFindVehicle();
-        await transactionPage.validateErrorMessage();
-    });
+    await transactionPage.clickFindVehicle();
+
+    await transactionPage.validateErrorMessage();
+  });
 });

@@ -7,7 +7,7 @@
   },
   "api": {
     "baseUrl": "https://api.onegov.nsw.gov.au",
-    "accessToken": "amc30c67fex3tufWsL4OdsCcJT7Y"
+    "accessToken": "2DGIIZmrCG1Q5CsUcG5X3jkoE2Fz"
   },
   "ui": {
     "baseUrl": "https://www.service.nsw.gov.au"

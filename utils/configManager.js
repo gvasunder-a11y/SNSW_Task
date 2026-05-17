@@ -1,44 +1,70 @@
 const fs = require('fs');
 const path = require('path');
 
-// ConfigManager provides centralized access to the JSON config file.
-// It reads and updates configuration values used across UI and API tests.
+// ConfigManager provides central read access to non-secret framework config.
+// Page objects and API clients use this helper instead of hardcoding URLs or test data.
 class ConfigManager {
   constructor() {
-    // Build an absolute path to the shared config file.
+    // Resolve the config path once so callers can instantiate this class from any folder.
     this.configPath = path.join(__dirname, '../config/config.json');
+    this._cachedConfig = null;
   }
 
   getConfig() {
-    // Load the JSON file and parse it into a JavaScript object.
-    return JSON.parse(fs.readFileSync(this.configPath, 'utf8'));
+    // Cache config after first read to avoid repeated file I/O during a test.
+    if (!this._cachedConfig) {
+      this._cachedConfig = JSON.parse(
+        fs.readFileSync(this.configPath, 'utf8')
+      );
+    }
+
+    return this._cachedConfig;
   }
 
   updateConfig(key, value) {
-    // Read the current config, update a nested key, and write it back.
+    // Utility retained for future non-secret runtime config updates.
+    // Current API access tokens are deliberately not persisted through this method.
     const config = this.getConfig();
     const keys = key.split('.');
+
     let obj = config;
     for (let i = 0; i < keys.length - 1; i++) {
       obj = obj[keys[i]];
     }
+
     obj[keys[keys.length - 1]] = value;
-    fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
+
+    fs.writeFileSync(
+      this.configPath,
+      JSON.stringify(config, null, 2)
+    );
+
+    this._cachedConfig = config;
   }
 
   getTestData() {
-    // Return test data values such as plate numbers from the config.
+    // Returns all reusable test data, such as plate numbers.
     return this.getConfig().testData;
   }
 
   getApiConfig() {
-    // Return the API-specific configuration section.
+    // Returns API configuration, including the API base URL.
     return this.getConfig().api;
   }
 
   getUiConfig() {
-    // Return the UI-specific configuration section.
+    // Returns UI configuration, including the Service NSW base URL.
     return this.getConfig().ui;
+  }
+
+  // Happy-path plate number used by the renewal UI scenario.
+  getHappyPathPlate() {
+    return this.getConfig()?.testData?.plateNumbers?.happyPath;
+  }
+
+  // Negative plate number used to validate the renewal app error state.
+  getNegativePlate() {
+    return this.getConfig()?.testData?.plateNumbers?.negative;
   }
 }
 
