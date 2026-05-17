@@ -1,0 +1,15 @@
+{
+  "testData": {
+    "plateNumbers": {
+      "happyPath": "YGW98K",
+      "negative": "XYX123"
+    }
+  },
+  "api": {
+    "baseUrl": "https://api.onegov.nsw.gov.au",
+    "accessToken": "ygkNsomA8348GeVbkHKAp7tDUM40"
+  },
+  "ui": {
+    "baseUrl": "https://www.service.nsw.gov.au"
+  }
+}
