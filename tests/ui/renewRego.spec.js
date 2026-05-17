@@ -1,5 +1,8 @@
 const { test, expect } = require('@playwright/test');
 const ConfigManager = require('../../utils/configManager');
+const HomePage = require('../../pages/HomePage');
+const SearchResultsPage = require('../../pages/SearchResultsPage');
+const TransactionPage = require('../../pages/TransactionPage');
 
 // UI tests for the Service NSW Renew Registration flow.
 test.describe('Service NSW UI Automation', () => {
@@ -11,141 +14,66 @@ test.describe('Service NSW UI Automation', () => {
     });
 
     test('Load Home Page and Renew Registration Landing page', async ({ page }) => {
-        // Navigate to Service NSW homepage.
-        await page.goto('https://www.service.nsw.gov.au/', {
-            waitUntil: 'domcontentloaded'
-        });
+        const homePage = new HomePage(page);
+        const searchResultsPage = new SearchResultsPage(page);
+        const transactionPage = new TransactionPage(page);
 
-        // Accept cookies if the banner is displayed.
-        const acceptCookiesButton = page.getByRole('button', { name: /accept/i });
-        if (await acceptCookiesButton.isVisible().catch(() => false)) {
-            await acceptCookiesButton.click();
-        }
+        await homePage.goto();
+        await homePage.validatePageLoads();
 
-        // Search for "Renew Rego" using the search input locator.
-        const searchInput = page
-            .locator('#block-content')
-            .getByRole('combobox', { name: 'Search' });
+        await homePage.searchForService('Renew Rego');
+        await searchResultsPage.validateResults();
+        await searchResultsPage.clickRenewRego();
 
-        await expect(searchInput).toBeVisible({ timeout: 20000 });
-        await searchInput.click();
-        await searchInput.fill('Renew Rego');
-
-        // Click the Search button to submit the query.
-        await page
-            .locator('#block-content')
-            .getByRole('button', { name: 'Search' })
-            .click();
-
-        // Open the service page for renewing vehicle registration online.
-        await page
-            .getByRole('link', { name: /Renew a vehicle registration online/i })
-            .click();
-
-        // Verify the service page is loaded by checking the URL.
         await expect(page).toHaveURL(/renew-a-vehicle-registration/i);
+        await transactionPage.clickRenewOnline();
 
-        // Click "Renew online" to begin the renewal journey.
-        await page.getByRole('button', { name: 'Renew online' }).click();
-
-        // Verify the registration input field is visible on the next page.
         const plateInput = page.getByTestId('input');
         await expect(plateInput).toBeVisible({ timeout: 15000 });
     });
 
     test('Happy Path: Renew vehicle registration with valid plate number', async ({ page }) => {
-        // Navigate to Service NSW homepage.
-        await page.goto('https://www.service.nsw.gov.au/', {
-            waitUntil: 'domcontentloaded'
-        });
+        const homePage = new HomePage(page);
+        const searchResultsPage = new SearchResultsPage(page);
+        const transactionPage = new TransactionPage(page);
 
-        // Accept cookies if the banner is displayed.
-        const acceptCookiesButton = page.getByRole('button', { name: /accept/i });
-        if (await acceptCookiesButton.isVisible().catch(() => false)) {
-            await acceptCookiesButton.click();
-        }
+        await homePage.goto();
+        await homePage.validatePageLoads();
 
-        // Search for "Renew Rego" using the search input locator.
-        const searchInput = page
-            .locator('#block-content')
-            .getByRole('combobox', { name: 'Search' });
-        await expect(searchInput).toBeVisible({ timeout: 20000 });
-        await searchInput.click();
-        await searchInput.fill('Renew Rego');
+        await homePage.searchForService('Renew Rego');
+        await searchResultsPage.validateResults();
+        await searchResultsPage.clickRenewRego();
 
-        // Click the Search button to submit the query.
-        await page
-            .locator('#block-content')
-            .getByRole('button', { name: 'Search' })
-            .click();
-
-        // Open the service page for renewing vehicle registration online.
-        await page
-            .getByRole('link', { name: /Renew a vehicle registration online/i })
-            .click();
-
-        // Verify the service page is loaded by checking the URL.
         await expect(page).toHaveURL(/renew-a-vehicle-registration/i);
+        await transactionPage.clickRenewOnline();
 
-        // Click "Renew online" to begin the renewal journey.
-        await page.getByRole('button', { name: 'Renew online' }).click();
-
-        // Verify the registration input field is visible on the next page.
         const plateInput = page.getByTestId('input');
         await expect(plateInput).toBeVisible({ timeout: 15000 });
 
-        // Enter valid registration plate for the happy path.
-        await plateInput.fill(configManager.getTestData().plateNumbers.happyPath);
-
-        // Click Find Vehicle to continue with the valid registration.
-        await page.getByTestId('find-vehicle-button').click();
+        await transactionPage.enterPlateNumber(configManager.getTestData().plateNumbers.happyPath);
+        await transactionPage.clickFindVehicle();
     });
 
     test('Negative Scenario: Renew vehicle registration with invalid plate number', async ({ page }) => {
-        // Navigate to Service NSW homepage.
-        await page.goto('https://www.service.nsw.gov.au/', {
-            waitUntil: 'domcontentloaded'
-        });
+        const homePage = new HomePage(page);
+        const searchResultsPage = new SearchResultsPage(page);
+        const transactionPage = new TransactionPage(page);
 
-        // Accept cookies if the banner is displayed.
-        const acceptCookiesButton = page.getByRole('button', { name: /accept/i });
-        if (await acceptCookiesButton.isVisible().catch(() => false)) {
-            await acceptCookiesButton.click();
-        }
+        await homePage.goto();
+        await homePage.validatePageLoads();
 
-        // Search for "Renew Rego" using the search input locator.
-        const searchInput = page
-            .locator('#block-content')
-            .getByRole('combobox', { name: 'Search' });
-        await expect(searchInput).toBeVisible({ timeout: 20000 });
-        await searchInput.click();
-        await searchInput.fill('Renew Rego');
+        await homePage.searchForService('Renew Rego');
+        await searchResultsPage.validateResults();
+        await searchResultsPage.clickRenewRego();
 
-        // Click the Search button to submit the query.
-        await page
-            .locator('#block-content')
-            .getByRole('button', { name: 'Search' })
-            .click();
-
-        // Open the service page for renewing vehicle registration online.
-        await page
-            .getByRole('link', { name: /Renew a vehicle registration online/i })
-            .click();
-
-        // Verify the service page is loaded by checking the URL.
         await expect(page).toHaveURL(/renew-a-vehicle-registration/i);
+        await transactionPage.clickRenewOnline();
 
-        // Click "Renew online" to begin the renewal journey.
-        await page.getByRole('button', { name: 'Renew online' }).click();
-
-        // Verify the registration input field is visible on the next page.
         const plateInput = page.getByTestId('input');
         await expect(plateInput).toBeVisible({ timeout: 15000 });
 
-        // Enter invalid registration plate for the negative scenario.
-        await plateInput.fill(configManager.getTestData().plateNumbers.negative);
-
-        // Click Find Vehicle to submit the invalid registration.
-        await page.getByTestId('find-vehicle-button').click();
+        await transactionPage.enterPlateNumber(configManager.getTestData().plateNumbers.negative);
+        await transactionPage.clickFindVehicle();
+        await transactionPage.validateErrorMessage();
     });
 });

@@ -10,7 +10,7 @@ This framework follows a modular architecture with clear separation of concerns:
 - **API Automation**: Uses Axios for HTTP requests with dedicated API clients
 - **Configuration Management**: Centralized config management with environment variable support
 - **Test Organization**: Structured test suites for UI and API scenarios
-- **Reporting**: Built-in Playwright reporting with custom result saving
+- **Reporting**: Built-in Playwright reporting with HTML and GitHub workflow integration
 
 ### Key Design Decisions
 
@@ -27,6 +27,8 @@ This framework follows a modular architecture with clear separation of concerns:
 - **Node.js**: JavaScript runtime for consistency across UI and API testing
 - **dotenv**: Secure environment variable management for secrets
 - **Multi-Browser Testing**: Tests execute on Chrome, Firefox, and WebKit to ensure cross-browser compatibility
+- **CI Reporting**: GitHub reporter support is enabled for GitHub Actions in addition to HTML report generation
+- **Screenshot Capture**: UI test failures capture screenshots automatically for easier debugging
 
 ## Setup Instructions
 
@@ -67,7 +69,16 @@ This framework follows a modular architecture with clear separation of concerns:
 ```bash
 npm test
 ```
-This runs all tests across Chrome, Firefox, and WebKit browsers in parallel.
+This runs all tests across Chrome, Firefox, and WebKit browsers in parallel and generates both an HTML report and GitHub workflow report metadata when executed in GitHub Actions.
+
+After the run, view the local HTML report with:
+```bash
+npx playwright show-report
+```
+
+Step-by-step screenshots are now captured across UI interactions and page transitions for both passing and failing scenarios. Find screenshot artifacts in the Playwright test output directory under `test-results/`.
+
+The `test-results/` folder now holds screenshots and other Playwright artifacts, while the HTML report is generated under `playwright-report/`.
 
 ### Run Tests on Specific Browser
 ```bash
