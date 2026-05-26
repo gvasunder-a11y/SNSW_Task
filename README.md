@@ -5,9 +5,9 @@ This repo contains a Playwright test framework for the Service NSW renew registr
 The framework currently covers:
 
 - UI checks for the renew registration flow.
-- API checks for token retrieval, reference data, transaction id generation, and timestamp generation.
-- Lightweight accessibility scans with axe-core. ARIA-specific axe rules are disabled for this task.
-- Playwright HTML reporting, failure screenshots, and CI artifact upload.
+- API checks for GET request validation, OAuth query parameters, reference data response validation, non-2xx error handling, transaction id generation, and timestamp generation.
+- Lightweight accessibility scans with axe-core, including axe's ARIA category.
+- Playwright HTML reporting, API request/response JSON evidence, grouped UI screenshot evidence, markdown accessibility findings, and CI artifact upload.
 
 ## Stack
 
@@ -55,6 +55,7 @@ tests/
   ui/
     renewRego.spec.js
 utils/
+  apiEvidenceHelper.js
   accessibilityHelper.js
   configManager.js
   screenshotHelper.js
@@ -96,6 +97,18 @@ npx playwright test tests/api/fuelApi.spec.js
 npx playwright test tests/accessibility/renewRegoAccessibility.spec.js
 ```
 
+Run UI and accessibility evidence together:
+
+```bash
+npx playwright test tests/ui tests/accessibility
+```
+
+PowerShell:
+
+```powershell
+npx.cmd playwright test tests/ui tests/accessibility
+```
+
 Open the report:
 
 ```bash
@@ -120,8 +133,10 @@ UI tests cover:
 
 API tests cover:
 
-- OAuth access token retrieval.
-- Reference data retrieval.
+- OAuth access token retrieval using a GET request.
+- OAuth `grant_type=client_credentials` query parameter validation.
+- Reference data response status, content type, and payload validation.
+- Negative API behavior when an invalid bearer token returns a non-2xx status.
 - Six-digit transaction id generation.
 - Current timestamp generation.
 
@@ -133,7 +148,7 @@ Accessibility tests cover these page states:
 - Plate lookup form.
 - Invalid plate error state.
 
-The default Playwright config discovers 18 tests:
+The default Playwright config discovers 20 tests:
 
 - `api`: API specs only.
 - `chrome`: UI and accessibility specs.
@@ -142,9 +157,7 @@ The default Playwright config discovers 18 tests:
 
 ## Accessibility Scope
 
-The accessibility suite uses axe-core to catch general page issues and attach evidence to the Playwright report. It is not being used as an ARIA standards review.
-
-In [utils/accessibilityHelper.js](./utils/accessibilityHelper.js), the helper disables every installed axe rule whose id starts with `aria-`. That keeps known ARIA rule output from the live Service NSW pages out of this task while still allowing the scan to report other automated findings.
+The accessibility suite uses axe-core to catch general page issues and ARIA-related findings through the configured WCAG tags plus axe's ARIA category. It writes evidence to a markdown findings file.
 
 By default, accessibility findings are reported but do not fail the build. To make reported findings fail the run:
 
@@ -159,11 +172,13 @@ $env:A11Y_FAIL_ON_VIOLATIONS='true'
 npm run test:accessibility
 ```
 
-Each scan attaches:
+Accessibility scans write one markdown-only findings file:
 
-- A markdown summary.
-- The raw axe JSON result.
-- A Playwright screenshot if the test itself fails.
+```text
+test-results/accessibility/accessibility-findings.md
+```
+
+The accessibility suite does not capture step screenshots and does not write raw axe JSON files. The markdown report includes each scanned state, URL, axe engine version, violation count, and manual-review items.
 
 ## Framework Notes
 
@@ -182,27 +197,25 @@ The locator approach is practical rather than over-engineered:
 
 `ConfigManager` reads non-secret config from `config/config.json`. API secrets come from `.env` or CI secrets. Runtime access tokens are kept in memory and are not written back into config.
 
+`FuelApiClient` exposes data-only helpers for normal flows and response-returning helpers for API assertions that need raw HTTP status, request metadata, headers, and body validation.
+
 ## Reports And Artifacts
 
 Playwright writes:
 
 - HTML report: `playwright-report/`
 - Test artifacts: `test-results/`
+- API request/response JSON evidence: `test-results/api/`
 - API reference-data artifact: `test-results/reference-data.json`
-- Accessibility markdown and JSON attachments in the HTML report
+- Accessibility findings: `test-results/accessibility/accessibility-findings.md`
 
-Optional step screenshots can be enabled for local debugging:
+UI tests capture full-page step screenshots on every run and write:
 
-```bash
-CAPTURE_STEP_SCREENSHOTS=true npm test
-```
+- Grouped review document: `test-results/screenshot-review.html`
+- Screenshot manifest: `test-results/screenshot-manifest.json`
+- Full-page screenshots grouped by test case: `test-results/screenshots/`
 
-PowerShell:
-
-```powershell
-$env:CAPTURE_STEP_SCREENSHOTS='true'
-npm test
-```
+Accessibility tests are excluded from screenshot capture, so the review document stays focused on UI regression evidence.
 
 ## CI
 

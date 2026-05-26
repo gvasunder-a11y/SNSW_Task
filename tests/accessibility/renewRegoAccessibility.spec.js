@@ -15,10 +15,10 @@ test.describe('Service NSW Accessibility - Renew Registration', () => {
     configManager = new ConfigManager();
   });
 
-  const searchForRenewRegistration = async (page) => {
+  const searchForRenewRegistration = async (page, testInfo) => {
     // Reuse the same customer search path as the UI tests before scanning search results.
-    const homePage = new HomePage(page);
-    const searchResultsPage = new SearchResultsPage(page);
+    const homePage = new HomePage(page, testInfo);
+    const searchResultsPage = new SearchResultsPage(page, testInfo);
 
     await homePage.goto();
     await homePage.validatePageLoads();
@@ -28,11 +28,11 @@ test.describe('Service NSW Accessibility - Renew Registration', () => {
     return searchResultsPage;
   };
 
-  const openRenewRegistration = async (page) => {
+  const openRenewRegistration = async (page, testInfo) => {
     // Opens the content landing page. The SearchResultsPage includes a stable fallback
     // when public search results do not render the expected link.
-    const searchResultsPage = await searchForRenewRegistration(page);
-    const transactionPage = new TransactionPage(page);
+    const searchResultsPage = await searchForRenewRegistration(page, testInfo);
+    const transactionPage = new TransactionPage(page, testInfo);
 
     await searchResultsPage.clickRenewRego();
     await expect(page).toHaveURL(/renew-a-vehicle-registration/i);
@@ -42,7 +42,7 @@ test.describe('Service NSW Accessibility - Renew Registration', () => {
 
   test('Home page automated accessibility report', async ({ page }, testInfo) => {
     // Baseline scan for the public Service NSW home page.
-    const homePage = new HomePage(page);
+    const homePage = new HomePage(page, testInfo);
 
     await homePage.goto();
     await homePage.validatePageLoads();
@@ -54,7 +54,7 @@ test.describe('Service NSW Accessibility - Renew Registration', () => {
 
   test('Renew registration search results automated accessibility report', async ({ page }, testInfo) => {
     // Scans the search-results state reached by the customer search action.
-    await searchForRenewRegistration(page);
+    await searchForRenewRegistration(page, testInfo);
 
     await runAccessibilityScan(page, testInfo, {
       scanName: 'Renew registration search results'
@@ -63,7 +63,7 @@ test.describe('Service NSW Accessibility - Renew Registration', () => {
 
   test('Renew registration landing page automated accessibility report', async ({ page }, testInfo) => {
     // Scans the transaction content page before opening the external renewal app.
-    await openRenewRegistration(page);
+    await openRenewRegistration(page, testInfo);
 
     await runAccessibilityScan(page, testInfo, {
       scanName: 'Renew registration landing page'
@@ -72,7 +72,7 @@ test.describe('Service NSW Accessibility - Renew Registration', () => {
 
   test('Plate lookup form automated accessibility report', async ({ page }, testInfo) => {
     // Scans the first interactive state in the external renewal app.
-    const transactionPage = await openRenewRegistration(page);
+    const transactionPage = await openRenewRegistration(page, testInfo);
 
     await transactionPage.clickRenewOnline();
     await transactionPage.validatePlateNumberInputVisible();
@@ -84,7 +84,7 @@ test.describe('Service NSW Accessibility - Renew Registration', () => {
 
   test('Invalid plate error state automated accessibility report', async ({ page }, testInfo) => {
     // Scans an error state because validation messaging is high-risk for customers.
-    const transactionPage = await openRenewRegistration(page);
+    const transactionPage = await openRenewRegistration(page, testInfo);
 
     await transactionPage.clickRenewOnline();
     await transactionPage.enterPlateNumber(configManager.getNegativePlate());

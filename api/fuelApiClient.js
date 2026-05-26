@@ -21,18 +21,26 @@ class FuelApiClient {
   async getAccessToken() {
     // Request a fresh OAuth token for each API flow.
     // The token is returned to the caller and not written into tracked config.
+    const response = await this.getAccessTokenResponse();
+    return response.data.access_token;
+  }
+
+  async getAccessTokenResponse(options = {}) {
+    const { headers = {}, params = {}, ...requestOptions } = options;
+
     try {
       const response = await axios.get(`${this.baseUrl}/oauth/client_credential/accesstoken`, {
-        params: { grant_type: 'client_credentials' },
+        params: { grant_type: 'client_credentials', ...params },
         timeout: 30000,
         headers: {
           'Authorization': this.authHeader,
-          'accept': 'application/json'
-        }
+          'accept': 'application/json',
+          ...headers
+        },
+        ...requestOptions
       });
 
-      const accessToken = response.data.access_token;
-      return accessToken;
+      return response;
     } catch (error) {
       // Surface a clear message in Playwright reports if authentication fails.
       throw new Error(`Failed to get access token: ${error.message}`);
@@ -40,9 +48,15 @@ class FuelApiClient {
   }
 
   async getReferenceData(accessToken) {
+    const response = await this.getReferenceDataResponse(accessToken);
+    return response.data;
+  }
+
+  async getReferenceDataResponse(accessToken, options = {}) {
     // Build unique request metadata required by the NSW API gateway.
     const transactionId = this.generateTransactionId();
     const timestamp = this.getCurrentTimestamp();
+    const { headers = {}, ...requestOptions } = options;
 
     try {
       const response = await axios.get(`${this.baseUrl}/FuelCheckRefData/v1/fuel/lovs`, {
@@ -54,15 +68,20 @@ class FuelApiClient {
           'transactionid': transactionId,
           'requesttimestamp': timestamp,
           'if-modified-since': timestamp,
-          'accept': 'application/json'
-        }
+          'accept': 'application/json',
+          ...headers
+        },
+        ...requestOptions
       });
 
-      // Persist response data as an artifact for interview/review evidence.
-      const responsePath = path.join(__dirname, '../test-results/reference-data.json');
-      fs.mkdirSync(path.dirname(responsePath), { recursive: true });
-      fs.writeFileSync(responsePath, JSON.stringify(response.data, null, 2));
-      return response.data;
+      if (response.status >= 200 && response.status < 300) {
+        // Persist response data as an artifact for interview/review evidence.
+        const responsePath = path.join(__dirname, '../test-results/reference-data.json');
+        fs.mkdirSync(path.dirname(responsePath), { recursive: true });
+        fs.writeFileSync(responsePath, JSON.stringify(response.data, null, 2));
+      }
+
+      return response;
     } catch (error) {
       // Keep API failures actionable in the report.
       throw new Error(`Failed to get reference data: ${error.message}`);

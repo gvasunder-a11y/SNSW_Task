@@ -34,7 +34,7 @@ export default defineConfig({
     /* Base URL to use in actions like `await page.goto('')`. */
     // baseURL: 'http://localhost:3000',
 
-    /* Keep default evidence lightweight; step screenshots can be enabled with CAPTURE_STEP_SCREENSHOTS=true. */
+    /* Playwright captures failure screenshots; UI step screenshots are captured by screenshotHelper. */
     screenshot: 'only-on-failure',
     actionTimeout: 20000,
     navigationTimeout: 30000,

@@ -1,30 +1,69 @@
 const { expect } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
 const AxeBuilder = require('@axe-core/playwright').default;
-const axeCore = require('axe-core');
 
-// Keep the scan broad enough to catch common page issues, but leave ARIA-specific
-// rules out because this task is not using the suite as an ARIA standards check.
+// Keep the scan broad enough to catch common page issues, including axe's ARIA category.
 const ACCESSIBILITY_TAGS = [
   'wcag2a',
   'wcag2aa',
   'wcag21a',
   'wcag21aa',
-  'wcag22aa'
+  'wcag22aa',
+  'cat.aria'
 ];
 
-const EXCLUDED_ARIA_RULES = axeCore
-  .getRules()
-  .map((rule) => rule.ruleId)
-  .filter((ruleId) => ruleId.startsWith('aria-'))
-  .sort();
+const ACCESSIBILITY_REPORT_DIR = path.join(
+  process.cwd(),
+  'test-results',
+  'accessibility'
+);
+const ACCESSIBILITY_FINDINGS_PATH = path.join(
+  ACCESSIBILITY_REPORT_DIR,
+  'accessibility-findings.md'
+);
 
-function sanitizeName(value) {
-  // Attachment names must be stable and file-system safe for HTML report artifacts.
-  return value
-    .replace(/[^a-zA-Z0-9-_\.]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80);
+let findingsInitialized = false;
+
+function ensureDirectoryExists(directory) {
+  if (!fs.existsSync(directory)) {
+    fs.mkdirSync(directory, { recursive: true });
+  }
+}
+
+function initializeAccessibilityFindings() {
+  ensureDirectoryExists(ACCESSIBILITY_REPORT_DIR);
+
+  if (findingsInitialized) {
+    return;
+  }
+
+  fs.writeFileSync(
+    ACCESSIBILITY_FINDINGS_PATH,
+    [
+      '# Accessibility Findings',
+      '',
+      `Generated: ${new Date().toISOString()}`,
+      `Tags: ${ACCESSIBILITY_TAGS.join(', ')}`,
+      'ARIA rules: included',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
+
+  findingsInitialized = true;
+}
+
+function writeAccessibilityFindings(markdownReport) {
+  initializeAccessibilityFindings();
+
+  fs.appendFileSync(
+    ACCESSIBILITY_FINDINGS_PATH,
+    `${markdownReport}\n`,
+    'utf8'
+  );
+
+  return ACCESSIBILITY_FINDINGS_PATH;
 }
 
 function formatTarget(target) {
@@ -47,23 +86,21 @@ function formatNodeRecommendations(node) {
 }
 
 function buildMarkdownReport(scanName, results) {
-  // Markdown is attached to the Playwright HTML report so interview/review feedback is readable.
+  // Each scan is appended to a single markdown findings document for quick review.
   const violations = results.violations || [];
   const incomplete = results.incomplete || [];
   const lines = [
-    `# Accessibility Scan: ${scanName}`,
+    `## ${scanName}`,
     '',
     `URL: ${results.url}`,
     `Engine: ${results.testEngine.name} ${results.testEngine.version}`,
-    `Tags: ${ACCESSIBILITY_TAGS.join(', ')}`,
-    'ARIA rules: excluded from this scan',
     `Violations: ${violations.length}`,
     `Needs manual review: ${incomplete.length}`,
     ''
   ];
 
   if (violations.length === 0) {
-    lines.push('No automated violations were detected for the configured non-ARIA rules.', '');
+    lines.push('No automated violations were detected for the configured rules.', '');
   } else {
     // Limit per-rule node details so reports remain useful instead of overwhelming.
     lines.push('## Violations', '');
@@ -141,7 +178,7 @@ function buildFailureMessage(scanName, violations) {
 
   return [
     `Accessibility violations found for ${scanName}.`,
-    'The full markdown and JSON reports are attached to the Playwright HTML report.',
+    'The full markdown findings report is available under test-results/accessibility.',
     '',
     summary
   ].join('\n');
@@ -182,28 +219,16 @@ async function runAccessibilityScan(page, testInfo, options = {}) {
   const failOnViolations =
     options.failOnViolations ?? process.env.A11Y_FAIL_ON_VIOLATIONS === 'true';
   const builder = new AxeBuilder({ page })
-    .withTags(ACCESSIBILITY_TAGS)
-    .disableRules(EXCLUDED_ARIA_RULES);
+    .withTags(ACCESSIBILITY_TAGS);
 
   // Include/exclude support allows future transactions to scope scans to specific regions.
   (options.include || []).forEach((selector) => builder.include(selector));
   (options.exclude || []).forEach((selector) => builder.exclude(selector));
 
-  // Run axe in the current browser context and attach both human-readable and raw evidence.
+  // Run axe in the current browser context and append human-readable findings.
   const results = await builder.analyze();
-  const reportName = sanitizeName(scanName);
   const markdownReport = buildMarkdownReport(scanName, results);
-  const jsonReport = JSON.stringify(results, null, 2);
-
-  await testInfo.attach(`${reportName}-accessibility.md`, {
-    body: markdownReport,
-    contentType: 'text/markdown'
-  });
-
-  await testInfo.attach(`${reportName}-accessibility.json`, {
-    body: jsonReport,
-    contentType: 'application/json'
-  });
+  writeAccessibilityFindings(markdownReport);
 
   const violations = results.violations || [];
   const failureMessage = buildFailureMessage(scanName, violations);
@@ -234,6 +259,5 @@ async function runAccessibilityScan(page, testInfo, options = {}) {
 
 module.exports = {
   ACCESSIBILITY_TAGS,
-  EXCLUDED_ARIA_RULES,
   runAccessibilityScan
 };

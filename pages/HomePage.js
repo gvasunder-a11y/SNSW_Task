@@ -5,8 +5,9 @@ const ConfigManager = require('../utils/configManager');
 // HomePage owns Service NSW home-page navigation and search behavior.
 // Tests should call these methods instead of directly locating home-page elements.
 class HomePage {
-  constructor(page) {
+  constructor(page, testInfo) {
     this.page = page;
+    this.testInfo = testInfo;
     this.configManager = new ConfigManager();
     this.baseUrl = this.configManager.getUiConfig().baseUrl;
 
@@ -31,7 +32,7 @@ class HomePage {
 
     // Cookie banners are optional, so they are handled defensively and never block the journey.
     await this.acceptCookiesIfVisible();
-    await capture(this.page, 'HomePage_Loaded');
+    await capture(this.page, 'HomePage_Loaded', this.testInfo);
   }
 
   async acceptCookiesIfVisible() {
@@ -39,10 +40,10 @@ class HomePage {
       // Use a short timeout because the banner is not guaranteed to be displayed on every run.
       if (await this.acceptCookiesButton.isVisible({ timeout: 3000 })) {
         await this.acceptCookiesButton.click();
-        await capture(this.page, 'HomePage_Cookies_Accepted');
+        await capture(this.page, 'HomePage_Cookies_Accepted', this.testInfo);
       }
     } catch (e) {
-      await capture(this.page, 'HomePage_No_Cookies');
+      await capture(this.page, 'HomePage_No_Cookies', this.testInfo);
     }
   }
 
@@ -53,7 +54,7 @@ class HomePage {
     await this.searchInput.click();
     await this.searchInput.fill(serviceName);
 
-    await capture(this.page, `HomePage_Search_${serviceName}`);
+    await capture(this.page, `HomePage_Search_${serviceName}`, this.testInfo);
 
     // Submit the search and wait for the browser route change in the same Promise.all block.
     // This avoids a race where navigation starts before the wait is registered.

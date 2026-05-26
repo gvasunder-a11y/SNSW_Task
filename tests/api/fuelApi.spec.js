@@ -1,5 +1,11 @@
 const { test, expect } = require('@playwright/test');
 const FuelApiClient = require('../../api/fuelApiClient');
+const { attachApiExchange } = require('../../utils/apiEvidenceHelper');
+
+function expectSuccessfulStatus(status) {
+  expect(status).toBeGreaterThanOrEqual(200);
+  expect(status).toBeLessThan(300);
+}
 
 // API tests validate the lower-level NSW Fuel API integration separately from UI flows.
 // Keeping this coverage outside UI tests gives faster feedback and clearer failure causes.
@@ -11,26 +17,69 @@ test.describe('NSW Fuel API Automation', () => {
     fuelApiClient = new FuelApiClient();
   });
 
-  test('GET request validation - Get Access Token', async () => {
-    // Confirms OAuth client credential setup is valid and returns a usable bearer token.
-    const accessToken = await fuelApiClient.getAccessToken();
+  test('GET request validation - Get Access Token', async ({}, testInfo) => {
+    const response = await fuelApiClient.getAccessTokenResponse({
+      validateStatus: () => true
+    });
+    await attachApiExchange(testInfo, 'Get Access Token', response);
 
+    expect(response.config.method).toBe('get');
+    expect(response.config.url).toContain('/oauth/client_credential/accesstoken');
+    expectSuccessfulStatus(response.status);
+
+    const accessToken = response.data.access_token;
     expect(accessToken).toBeTruthy();
     expect(typeof accessToken).toBe('string');
     expect(accessToken.length).toBeGreaterThan(10);
   });
 
-  test('Request with query parameters - Get Reference Data', async () => {
+  test('Request with query parameters - Get Access Token grant type', async ({}, testInfo) => {
+    const response = await fuelApiClient.getAccessTokenResponse({
+      validateStatus: () => true
+    });
+    await attachApiExchange(testInfo, 'Get Access Token With Grant Type', response);
+
+    expect(response.config.params).toMatchObject({
+      grant_type: 'client_credentials'
+    });
+    expectSuccessfulStatus(response.status);
+    expect(response.data.access_token).toBeTruthy();
+  });
+
+  test('Response validation - Get Reference Data', async ({}, testInfo) => {
     // Uses the token from the auth API to call the reference-data endpoint.
     // The response is persisted by the client as an execution artifact for review.
-    const accessToken = await fuelApiClient.getAccessToken();
-    const response = await fuelApiClient.getReferenceData(accessToken);
+    const accessTokenResponse = await fuelApiClient.getAccessTokenResponse({
+      validateStatus: () => true
+    });
+    await attachApiExchange(testInfo, 'Get Access Token For Reference Data', accessTokenResponse);
+    expectSuccessfulStatus(accessTokenResponse.status);
 
-    console.log(JSON.stringify(response, null, 2));
+    const accessToken = accessTokenResponse.data.access_token;
+    const response = await fuelApiClient.getReferenceDataResponse(accessToken, {
+      validateStatus: () => true
+    });
+    await attachApiExchange(testInfo, 'Get Reference Data', response);
 
-    expect(response).toBeTruthy();
-    expect(typeof response).toBe('object');
-    expect(Object.keys(response).length).toBeGreaterThan(0);
+    console.log(JSON.stringify(response.data, null, 2));
+
+    expectSuccessfulStatus(response.status);
+    expect(response.headers['content-type']).toContain('application/json');
+    expect(response.data).toBeTruthy();
+    expect(typeof response.data).toBe('object');
+    expect(Object.keys(response.data).length).toBeGreaterThan(0);
+  });
+
+  test('Negative API validation - invalid token returns non-2xx status', async ({}, testInfo) => {
+    const response = await fuelApiClient.getReferenceDataResponse('invalid-token', {
+      validateStatus: () => true
+    });
+    await attachApiExchange(testInfo, 'Get Reference Data With Invalid Token', response);
+
+    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(response.status).toBeLessThan(600);
+    expect(response.status < 200 || response.status >= 300).toBe(true);
+    expect(response.data).toBeTruthy();
   });
 
   test('Validate transaction ID generation', async () => {

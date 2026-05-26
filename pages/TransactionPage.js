@@ -4,8 +4,9 @@ const { capture } = require('../utils/screenshotHelper');
 // TransactionPage encapsulates the external renewal journey after the customer
 // selects "Renew online" from the Service NSW content page.
 class TransactionPage {
-  constructor(page) {
+  constructor(page, testInfo) {
     this.page = page;
+    this.testInfo = testInfo;
 
     // The exact accessible name avoids matching the "How to renew online" table-of-contents link.
     this.renewOnlineButton = page
@@ -38,8 +39,8 @@ class TransactionPage {
 
     await Promise.all([
       this.page.waitForURL(/registration-renewal\.service\.nsw\.gov\.au\/find-vehicle/i, {
-        timeout: 20000,
-        waitUntil: 'domcontentloaded'
+        timeout: 45000,
+        waitUntil: 'commit'
       }),
       this.renewOnlineButton.click()
     ]);
@@ -47,7 +48,7 @@ class TransactionPage {
     // The plate input is the first usable state of the transaction app.
     await expect(this.plateNumberInput).toBeVisible({ timeout: 20000 });
 
-    await capture(this.page, 'TransactionPage_Click_Renew_Online');
+    await capture(this.page, 'TransactionPage_Click_Renew_Online', this.testInfo);
   }
 
   async enterPlateNumber(plateNumber) {
@@ -57,7 +58,8 @@ class TransactionPage {
 
     await capture(
       this.page,
-      `TransactionPage_Plate_Number_Filled_${plateNumber}`
+      `TransactionPage_Plate_Number_Filled_${plateNumber}`,
+      this.testInfo
     );
   }
 
@@ -66,7 +68,7 @@ class TransactionPage {
     await expect(this.findVehicleButton).toBeVisible({ timeout: 15000 });
     await this.findVehicleButton.click();
 
-    await capture(this.page, 'TransactionPage_Click_Find_Vehicle');
+    await capture(this.page, 'TransactionPage_Click_Find_Vehicle', this.testInfo);
   }
 
   async validateRenewalTermsPage() {
@@ -75,7 +77,8 @@ class TransactionPage {
 
     await capture(
       this.page,
-      'TransactionPage_Validate_Renewal_Terms_Page'
+      'TransactionPage_Validate_Renewal_Terms_Page',
+      this.testInfo
     );
   }
 
@@ -88,7 +91,7 @@ class TransactionPage {
       this.errorMessage.getByText(/Cancelled registration/i)
     ).toBeVisible();
 
-    await capture(this.page, 'TransactionPage_Validate_Error_Message');
+    await capture(this.page, 'TransactionPage_Validate_Error_Message', this.testInfo);
   }
 
   async validatePlateNumberInputVisible() {
